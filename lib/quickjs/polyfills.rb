@@ -37,7 +37,15 @@ module Quickjs
       # observable cost is wasted compile work, and (for `source: Proc`) a
       # second Proc invocation — so register Procs that are safe to call
       # more than once.
-      entry[:bytecode] ||= _precompile_polyfill(entry, feature)
+      if entry[:bytecode].nil?
+        entry[:bytecode] = _precompile_polyfill(entry, feature)
+        # The Proc / String source isn't needed again once bytecode is
+        # cached — drop it so its captured scope can be GC'd. A racing
+        # second thread will already have called the Proc before reaching
+        # here (see comment above) so this is safe.
+        entry[:source] = nil
+        entry[:init]   = nil
+      end
       vm.send(:_load_polyfill_bytecode, entry[:bytecode])
     end
   end
